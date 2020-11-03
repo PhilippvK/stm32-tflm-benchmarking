@@ -33,40 +33,80 @@ extern "C" {
 /* Private includes ----------------------------------------------------------*/
 
 /* Exported types ------------------------------------------------------------*/
-#define AVG_LEN 4
-typedef struct ticks_info {
-  int32_t cur = -1;
-  int32_t avg = -1;
-  int32_t min = 10000;
-  int32_t max = -1;
-  int32_t ticks[AVG_LEN] = {0};
-  int32_t index = 0;
-  int32_t sum = 0;
-  int32_t count = 0;
-} ticks_info_t;
-
 
 /* Exported constants --------------------------------------------------------*/
 
 /* Exported macro ------------------------------------------------------------*/
+// Inspired by :https://aishack.in/tutorials/timing-macros/
+#ifdef BENCHMARKING
+#define DECLARE_BENCHMARK(s)\
+  uint32_t timeStart_##s;\
+  uint32_t timeDiff_##s;\
+  static uint32_t timeTotal_##s = 0;\
+  static uint32_t countTotal_##s = 0;\
+  static uint32_t timeMin_##s = 4294967295;\
+  static uint32_t timeMax_##s = 0;
+
+#define START_BENCHMARK(s)\
+  timeStart_##s = HAL_GetTick()
+
+#define STOP_BENCHMARK(s)\
+  timeDiff_##s = HAL_GetTick() - timeStart_##s;\
+  timeTotal_##s += timeDiff_##s;\
+  countTotal_##s++;\
+  timeMin_##s = timeDiff_##s < timeMin_##s ? timeDiff_##s : timeMin_##s;\
+  timeMax_##s = timeDiff_##s > timeMax_##s ? timeDiff_##s : timeMax_##s
+
+#define GET_BENCHMARK_CURRENT_MS(s)\
+  (uint32_t)(timeDiff_##s / HAL_GetTickFreq())
+
+#define GET_BENCHMARK_MIN_MS(s)\
+  (uint32_t)(timeMin_##s / HAL_GetTickFreq())
+
+#define GET_BENCHMARK_MAX_MS(s)\
+  (uint32_t)(timeMax_##s / HAL_GetTickFreq())
+
+#define GET_BENCHMARK_AVG_MS(s)\
+  (uint32_t)(countTotal_##s ? timeTotal_##s / (countTotal_##s * HAL_GetTickFreq()) : 0)
+
+#define RESET_BENCHMARK(s)\
+  timeTotal_##s = 0;\
+  countTotal_##s = 0;\
+  timeMin_##s = 0;\
+  timeMax_##s = 0;
+
+#define PRINT_BENCHMARK(s)\
+  fprintf(stderr,\
+      "%s_ms(cur/min/max/avg)=%ld/%ld/%ld/%ld\n\r",\
+      #s,\
+      GET_BENCHMARK_CURRENT_MS(s),\
+      GET_BENCHMARK_MIN_MS(s),\
+      GET_BENCHMARK_MAX_MS(s),\
+      GET_BENCHMARK_AVG_MS(s)\
+  )
+
+#define PRINT_TIMESTAMP() fprintf(stderr,"Time: %ld ms:\n\r", HAL_GetTick()/HAL_GetTickFreq())
+#else
+#define DECLARE_BENCHMARK(s)
+#define START_BENCHMARK(s)
+#define STOP_BENCHMARK(s)
+#define GET_BENCHMARK_CURRENT_MS(s)
+#define GET_BENCHMARK_AVERAGE_MS(s)
+#define GET_BENCHMARK_MIN_MS(s)
+#define GET_BENCHMARK_MAX_MS(s)
+#define RESET_BENCHMARK(s)
+#define PRINT_BENCHMARK(s)
+#define PRINT_TIMESTAMP()
+#endif /* BENCHMARKING */
 
 /* Exported functions prototypes ---------------------------------------------*/
-void print_summary(int types);
-void update_avg_ticks(int type, int32_t ticks);
-int32_t get_cur_ticks(int type);
-int32_t get_avg_ticks(int type);
-int32_t get_min_ticks(int type);
-int32_t get_max_ticks(int type);
+//void print_summary(int types);
 
 /* Private defines -----------------------------------------------------------*/
-#define TYPE_COUNT 4
-#define TICKS_POPULATE 1
-#define TICKS_INVOKE 2
-#define TICKS_RESPOND 4
-#define TICKS_OTHER 8
 
 #ifdef __cplusplus
 }
 #endif
+// Record the execution time of some code, in milliseconds.
 
 #endif  // SRC_MISC_BENCHMARKING_H_
